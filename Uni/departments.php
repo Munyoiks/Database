@@ -98,7 +98,8 @@
       if ($result && $result->num_rows > 0) {
         while($row = $result->fetch_assoc()) {
           // Get counts for each department
-          $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = " . $row['id']);
+          $deptId = isset($row['id']) ? intval($row['id']) : 0;
+          $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = $deptId");
           $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
           
           $courseCountQuery = $conn->query("SELECT COUNT(*) as count FROM course WHERE department_id = " . $row['id']);

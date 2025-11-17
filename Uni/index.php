@@ -1,4 +1,64 @@
-<?php include '../connection/db_connect.php'; ?>
+<?php 
+session_start();
+require_once 'connection/db_connect.php';
+
+// Check if student is logged in
+if (!isset($_SESSION['student_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+// Get student details
+$student_id = $_SESSION['student_id'];
+$student_stmt = $conn->prepare("
+    SELECT s.*, c.course_name, c.course_code, d.department_name 
+    FROM students s 
+    LEFT JOIN course c ON s.course_id = c.course_id 
+    LEFT JOIN department d ON s.department_id = d.department_id 
+    WHERE s.student_id = ?
+");
+$student_stmt->bind_param("i", $student_id);
+$student_stmt->execute();
+$student_result = $student_stmt->get_result();
+$student = $student_result->fetch_assoc();
+
+// Get finance information
+$finance_stmt = $conn->prepare("
+    SELECT * FROM finance 
+    WHERE student_id = ? 
+    ORDER BY academic_year DESC, semester DESC 
+    LIMIT 5
+");
+$finance_stmt->bind_param("i", $student_id);
+$finance_stmt->execute();
+$finance_result = $finance_stmt->get_result();
+$finance_records = [];
+while ($row = $finance_result->fetch_assoc()) {
+    $finance_records[] = $row;
+}
+
+// Get course count
+$course_stmt = $conn->prepare("
+    SELECT COUNT(*) as course_count 
+    FROM student_course 
+    WHERE student_id = ? AND status = 'enrolled'
+");
+$course_stmt->bind_param("i", $student_id);
+$course_stmt->execute();
+$course_result = $course_stmt->get_result();
+$course_count = $course_result->fetch_assoc()['course_count'] ?? 0;
+
+// Get pending fees
+$pending_stmt = $conn->prepare("
+    SELECT SUM(balance) as pending_fees 
+    FROM finance 
+    WHERE student_id = ? AND payment_status IN ('pending', 'partial')
+");
+$pending_stmt->bind_param("i", $student_id);
+$pending_stmt->execute();
+$pending_result = $pending_stmt->get_result();
+$pending_fees = $pending_result->fetch_assoc()['pending_fees'] ?? 0;
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -119,12 +179,21 @@
             <span>Departments</span>
           </a>
         </li>
+        <li class="mb-2">
+          <a href="logout.php" class="flex items-center p-3 rounded-lg sidebar-link text-red-200 hover:bg-red-800">
+            <i class="fas fa-sign-out-alt mr-3"></i>
+            <span>Logout</span>
+          </a>
+        </li>
       </ul>
     </nav>
     <div class="pt-4 border-t border-blue-700 mt-4">
       <div class="flex items-center text-sm text-blue-200">
         <i class="fas fa-user-circle mr-2"></i>
-        <span>Student Portal v1.0</span>
+        <span>Welcome, <?php echo htmlspecialchars($_SESSION['student_name']); ?></span>
+      </div>
+      <div class="text-xs text-blue-300 mt-1">
+        <?php echo htmlspecialchars($_SESSION['admission_number']); ?>
       </div>
     </div>
   </aside>
@@ -140,10 +209,19 @@
         </div>
         <div class="flex items-center space-x-3">
           <div class="text-right">
-            <p class="text-sm font-medium text-gray-800">John Doe</p>
-            <p class="text-xs text-gray-500">Computer Science</p>
+            <p class="text-sm font-medium text-gray-800"><?php echo htmlspecialchars($_SESSION['student_name']); ?></p>
+            <p class="text-xs text-gray-500"><?php echo htmlspecialchars($student['course_name'] ?? 'Not assigned'); ?></p>
           </div>
-          <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">JD</div>
+          <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+            <?php 
+              $names = explode(' ', $_SESSION['student_name']);
+              $initials = '';
+              foreach ($names as $name) {
+                $initials .= strtoupper(substr($name, 0, 1));
+              }
+              echo substr($initials, 0, 2);
+            ?>
+          </div>
         </div>
       </div>
     </div>
@@ -155,18 +233,14 @@
         <div class="flex justify-between items-start">
           <div>
             <h3 class="text-gray-500 text-sm font-medium">My Courses</h3>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM students WHERE student_id = 1");
-              $count = $r->fetch_assoc()['total'] ?: 4;
-            ?>
-            <p class="text-3xl font-bold text-gray-800 mt-2"><?= $count ?></p>
+            <p class="text-3xl font-bold text-gray-800 mt-2"><?= $course_count ?></p>
           </div>
           <div class="bg-blue-100 p-3 rounded-lg">
             <i class="fas fa-book text-blue-600 text-xl"></i>
           </div>
         </div>
         <div class="mt-4 text-sm text-gray-500">
-          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 2 new</span> this semester
+          <span class="text-green-500"><i class="fas fa-arrow-up"></i> Enrolled courses</span> this semester
         </div>
       </div>
 
@@ -207,11 +281,7 @@
         <div class="flex justify-between items-start">
           <div>
             <h3 class="text-gray-500 text-sm font-medium">Pending Fees</h3>
-            <?php 
-              $r = $conn->query("SELECT SUM(balance) AS pending FROM finance WHERE student_id = 1");
-              $pending = $r->fetch_assoc()['pending'] ?? 15000;
-            ?>
-            <p class="text-3xl font-bold text-gray-800 mt-2">KSh <?= number_format($pending) ?></p>
+            <p class="text-3xl font-bold text-gray-800 mt-2">KSh <?= number_format($pending_fees) ?></p>
           </div>
           <div class="bg-red-100 p-3 rounded-lg">
             <i class="fas fa-money-bill-wave text-red-600 text-xl"></i>
