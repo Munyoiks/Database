@@ -99,12 +99,16 @@
         while($row = $result->fetch_assoc()) {
           // Get counts for each department
           $deptId = isset($row['id']) ? intval($row['id']) : 0;
-          $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = $deptId");
-          $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
-          
-          $courseCountQuery = $conn->query("SELECT COUNT(*) as count FROM course WHERE department_id = " . $row['id']);
-          $courseCount = $courseCountQuery ? $courseCountQuery->fetch_assoc()['count'] : 0;
-          
+          // Only run queries if deptId is valid
+          if ($deptId > 0) {
+            $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = $deptId");
+            $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
+            $courseCountQuery = $conn->query("SELECT COUNT(*) as count FROM course WHERE department_id = $deptId");
+            $courseCount = $courseCountQuery ? $courseCountQuery->fetch_assoc()['count'] : 0;
+          } else {
+            $studentCount = 0;
+            $courseCount = 0;
+          }
           $lecturerCountQuery = $conn->query("SELECT COUNT(*) as count FROM lecturers WHERE department = '" . $row['name'] . "'");
           $lecturerCount = $lecturerCountQuery ? $lecturerCountQuery->fetch_assoc()['count'] : 0;
           

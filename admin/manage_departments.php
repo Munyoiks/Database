@@ -2,337 +2,384 @@
 session_start();
 require_once '../connection/db_connect.php';
 
-// Check if student is logged in
-if (!isset($_SESSION['student_id'])) {
-    header("Location: login.php");
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: admin_login.php");
     exit();
+}
+
+// Handle department creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_department'])) {
+    $department_name = trim($_POST['department_name']);
+    $department_code = trim($_POST['department_code']);
+    $head_of_department = trim($_POST['head_of_department']);
+    $description = trim($_POST['description']);
+    $established_date = $_POST['established_date'];
+    
+    try {
+        $stmt = $conn->prepare("INSERT INTO department (department_name, department_code, head_of_department, description, established_date) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssss", $department_name, $department_code, $head_of_department, $description, $established_date);
+        $stmt->execute();
+        
+        $success = "Department created successfully!";
+    } catch (Exception $e) {
+        $error = "Database error: " . $e->getMessage();
+    }
+}
+
+// Handle department deletion
+if (isset($_GET['delete_id'])) {
+    $delete_id = $_GET['delete_id'];
+    try {
+        $stmt = $conn->prepare("UPDATE department SET is_active = FALSE WHERE department_id = ?");
+        $stmt->bind_param("i", $delete_id);
+        
+        if ($stmt->execute()) {
+            $success = "Department deleted successfully!";
+        } else {
+            $error = "Failed to delete department: " . $conn->error;
+        }
+    } catch (Exception $e) {
+        $error = "Error: " . $e->getMessage();
+    }
+}
+
+// Get all departments
+$departments_result = $conn->query("SELECT * FROM department WHERE is_active = TRUE ORDER BY department_name");
+$departments = [];
+while ($row = $departments_result->fetch_assoc()) {
+    $departments[] = $row;
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <title>Departments Directory - Student Dashboard</title>
-</head>
-<body class="bg-gray-50 flex">
-  <?php include 'sidebar.php'; ?>
-
-  <!-- Main Content -->
-  <main class="flex-1 p-8">
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-800">Departments Directory</h1>
-      <div class="flex space-x-4">
-        <div class="relative">
-          <input type="text" placeholder="Search departments..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
-          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-        </div>
-      </div>
-    </div>
-
-    <!-- Statistics Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="flex items-center">
-          <div class="bg-indigo-100 p-3 rounded-lg mr-4">
-            <i class="fas fa-building text-indigo-600 text-xl"></i>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600">Total Departments</p>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM department WHERE is_active = TRUE");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-2xl font-bold text-gray-800"><?= $count ?></p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="flex items-center">
-          <div class="bg-blue-100 p-3 rounded-lg mr-4">
-            <i class="fas fa-user-graduate text-blue-600 text-xl"></i>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600">Total Students</p>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM students WHERE status_of_student = 'active'");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-2xl font-bold text-gray-800"><?= $count ?></p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="flex items-center">
-          <div class="bg-green-100 p-3 rounded-lg mr-4">
-            <i class="fas fa-book text-green-600 text-xl"></i>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600">Total Courses</p>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM course WHERE is_active = TRUE");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-2xl font-bold text-gray-800"><?= $count ?></p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div class="flex items-center">
-          <div class="bg-purple-100 p-3 rounded-lg mr-4">
-            <i class="fas fa-chalkboard-teacher text-purple-600 text-xl"></i>
-          </div>
-          <div>
-            <p class="text-sm text-gray-600">Total Lecturers</p>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM lecturers WHERE is_active = TRUE");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-2xl font-bold text-gray-800"><?= $count ?></p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Department Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      <?php
-      // Use the correct column names from your database schema
-      $result = $conn->query("
-          SELECT department_id, department_name, department_code, head_of_department, description, established_date 
-          FROM department 
-          WHERE is_active = TRUE
-          ORDER BY department_name
-      ");
-      
-      if ($result && $result->num_rows > 0) {
-        $colors = [
-            'bg-gradient-to-r from-blue-500 to-blue-600',
-            'bg-gradient-to-r from-green-500 to-green-600',
-            'bg-gradient-to-r from-purple-500 to-purple-600',
-            'bg-gradient-to-r from-orange-500 to-orange-600',
-            'bg-gradient-to-r from-red-500 to-red-600',
-            'bg-gradient-to-r from-indigo-500 to-indigo-600'
-        ];
-        
-        $colorIndex = 0;
-        
-        while($row = $result->fetch_assoc()) {
-          $deptId = $row['department_id'];
-          
-          // Get counts for each department using correct column names
-          $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = $deptId AND status_of_student = 'active'");
-          $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
-          
-          $courseCountQuery = $conn->query("SELECT COUNT(*) as count FROM course WHERE department_id = $deptId AND is_active = TRUE");
-          $courseCount = $courseCountQuery ? $courseCountQuery->fetch_assoc()['count'] : 0;
-          
-          $lecturerCountQuery = $conn->query("SELECT COUNT(*) as count FROM lecturers WHERE department_id = $deptId AND is_active = TRUE");
-          $lecturerCount = $lecturerCountQuery ? $lecturerCountQuery->fetch_assoc()['count'] : 0;
-          
-          $colorClass = $colors[$colorIndex % count($colors)];
-          $colorIndex++;
-          
-          echo '
-          <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-300 department-card">
-            <div class="'.$colorClass.' p-6 text-white">
-              <div class="flex justify-between items-start mb-4">
-                <div class="w-12 h-12 rounded-full bg-white bg-opacity-20 flex items-center justify-center text-white font-bold text-lg">
-                  '.substr($row['department_name'], 0, 1).'
-                </div>
-                <span class="bg-white bg-opacity-20 text-white text-xs px-3 py-1 rounded-full">'.$studentCount.' Students</span>
-              </div>
-              <h3 class="text-xl font-bold mb-2">'.$row['department_name'].'</h3>
-              <p class="text-white text-opacity-90 text-sm">'.($row['description'] ?: 'Department of '.$row['department_name']).'</p>
-            </div>
-            <div class="p-6">
-              <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <i class="fas fa-user-tie text-gray-400 mr-3"></i>
-                    <span class="text-sm text-gray-600">Department Head</span>
-                  </div>
-                  <span class="text-sm font-medium text-gray-800">'.$row['head_of_department'].'</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <i class="fas fa-book text-gray-400 mr-3"></i>
-                    <span class="text-sm text-gray-600">Courses Offered</span>
-                  </div>
-                  <span class="text-sm font-medium text-gray-800">'.$courseCount.'</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <i class="fas fa-chalkboard-teacher text-gray-400 mr-3"></i>
-                    <span class="text-sm text-gray-600">Lecturers</span>
-                  </div>
-                  <span class="text-sm font-medium text-gray-800">'.$lecturerCount.'</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center">
-                    <i class="fas fa-code text-gray-400 mr-3"></i>
-                    <span class="text-sm text-gray-600">Department Code</span>
-                  </div>
-                  <span class="text-sm font-medium text-gray-800">'.$row['department_code'].'</span>
-                </div>
-              </div>
-              
-              <!-- Progress bar for student capacity -->
-              <div class="mt-6">
-                <div class="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>Student Capacity</span>
-                  <span>'.min($studentCount, 100).'%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                  <div class="'.$colorClass.' h-2 rounded-full" style="width: '.min($studentCount, 100).'%"></div>
-                </div>
-              </div>
-            </div>
-            <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
-              <div class="flex justify-between space-x-2">
-                <button class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center view-details-btn" data-dept-id="'.$deptId.'" data-dept-name="'.$row['department_name'].'">
-                  <i class="fas fa-eye mr-2"></i> View Details
-                </button>
-                <button class="text-green-600 hover:text-green-800 font-medium text-sm flex items-center view-courses-btn" data-dept-id="'.$deptId.'" data-dept-name="'.$row['department_name'].'">
-                  <i class="fas fa-list mr-2"></i> Courses
-                </button>
-                <button class="text-purple-600 hover:text-purple-800 font-medium text-sm flex items-center view-lecturers-btn" data-dept-id="'.$deptId.'" data-dept-name="'.$row['department_name'].'">
-                  <i class="fas fa-users mr-2"></i> Lecturers
-                </button>
-              </div>
-            </div>
-          </div>
-          ';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Departments - School Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            background: #343a40 !important;
+            min-height: 100vh;
         }
-      } else {
-        echo '
-        <div class="col-span-3 text-center py-12">
-          <div class="bg-white rounded-xl shadow-sm p-8 max-w-md mx-auto">
-            <i class="fas fa-building text-gray-300 text-6xl mb-4"></i>
-            <h3 class="text-xl font-semibold text-gray-700 mb-2">No Departments Found</h3>
-            <p class="text-gray-500 mb-4">There are currently no departments in the system.</p>
-          </div>
-        </div>';
-      }
-      ?>
-    </div>
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: #495057;
+        }
+        .department-card {
+            transition: transform 0.2s;
+            border-left: 4px solid #007bff;
+        }
+        .department-card:hover {
+            transform: translateY(-5px);
+        }
+        .stats-card {
+            transition: transform 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-3px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="p-3">
+                    <h4 class="text-white mb-4">Admin Panel</h4>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="admin_dashboard.php">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="add_student.php">
+                                <i class="fas fa-user-plus me-2"></i>Add Student
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="manage_students.php">
+                                <i class="fas fa-users me-2"></i>Manage Students
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="manage_departments.php">
+                                <i class="fas fa-building me-2"></i>Departments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="manage_courses.php">
+                                <i class="fas fa-book me-2"></i>Courses
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="manage_lecturers.php">
+                                <i class="fas fa-chalkboard-teacher me-2"></i>Lecturers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="manage_finance.php">
+                                <i class="fas fa-money-bill-wave me-2"></i>Finance
+                            </a>
+                        </li>
+                        <?php if ($_SESSION['admin_role'] === 'super_admin'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="admin_register.php">
+                                <i class="fas fa-user-plus me-2"></i>Register Admin
+                            </a>
+                        </li>
+                        <?php endif; ?>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link text-warning" href="admin_logout.php">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="h3">Manage Departments</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
+                        <i class="fas fa-plus me-2"></i>Add Department
+                    </button>
+                </div>
+                
+                <?php if (isset($success)): ?>
+                    <div class="alert alert-success alert-dismissible fade show">
+                        <i class="fas fa-check-circle me-2"></i><?php echo $success; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (isset($error)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-exclamation-triangle me-2"></i><?php echo $error; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
 
-    <!-- Department Information Section -->
-    <div class="bg-white rounded-xl shadow-md overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200 bg-indigo-50">
-        <h2 class="text-xl font-semibold text-gray-800 flex items-center">
-          <i class="fas fa-info-circle mr-2 text-indigo-600"></i>
-          About University Departments
-        </h2>
-      </div>
-      <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h3 class="text-lg font-medium text-gray-800 mb-4">Department Services</h3>
-            <ul class="space-y-3 text-gray-600">
-              <li class="flex items-start">
-                <i class="fas fa-graduation-cap text-green-500 mt-1 mr-3"></i>
-                <span>Academic advising and course selection guidance</span>
-              </li>
-              <li class="flex items-start">
-                <i class="fas fa-book-open text-blue-500 mt-1 mr-3"></i>
-                <span>Research opportunities and project supervision</span>
-              </li>
-              <li class="flex items-start">
-                <i class="fas fa-briefcase text-purple-500 mt-1 mr-3"></i>
-                <span>Career counseling and internship placements</span>
-              </li>
-              <li class="flex items-start">
-                <i class="fas fa-handshake text-orange-500 mt-1 mr-3"></i>
-                <span>Industry partnerships and networking events</span>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="text-lg font-medium text-gray-800 mb-4">Contact Information</h3>
-            <ul class="space-y-3 text-gray-600">
-              <li class="flex items-center">
-                <i class="fas fa-clock text-indigo-500 mr-3"></i>
-                <span>Office Hours: Monday-Friday, 8:00 AM - 5:00 PM</span>
-              </li>
-              <li class="flex items-center">
-                <i class="fas fa-envelope text-indigo-500 mr-3"></i>
-                <span>Email: departments@university.edu</span>
-              </li>
-              <li class="flex items-center">
-                <i class="fas fa-phone text-indigo-500 mr-3"></i>
-                <span>Phone: +254 20 123 4567</span>
-              </li>
-              <li class="flex items-center">
-                <i class="fas fa-map-marker-alt text-indigo-500 mr-3"></i>
-                <span>Location: Administration Building, 2nd Floor</span>
-              </li>
-            </ul>
-          </div>
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <?php
+                    // Get statistics
+                    $total_departments = $conn->query("SELECT COUNT(*) as count FROM department WHERE is_active = TRUE")->fetch_assoc()['count'];
+                    $total_students = $conn->query("SELECT COUNT(*) as count FROM students WHERE status_of_student = 'active'")->fetch_assoc()['count'];
+                    $total_courses = $conn->query("SELECT COUNT(*) as count FROM course WHERE is_active = TRUE")->fetch_assoc()['count'];
+                    $total_lecturers = $conn->query("SELECT COUNT(*) as count FROM lecturers WHERE is_active = TRUE")->fetch_assoc()['count'];
+                    ?>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stats-card text-white bg-primary">
+                            <div class="card-body text-center">
+                                <h4 class="mb-1"><?php echo $total_departments; ?></h4>
+                                <p class="mb-0">Total Departments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stats-card text-white bg-success">
+                            <div class="card-body text-center">
+                                <h4 class="mb-1"><?php echo $total_students; ?></h4>
+                                <p class="mb-0">Total Students</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stats-card text-white bg-warning">
+                            <div class="card-body text-center">
+                                <h4 class="mb-1"><?php echo $total_courses; ?></h4>
+                                <p class="mb-0">Total Courses</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stats-card text-white bg-info">
+                            <div class="card-body text-center">
+                                <h4 class="mb-1"><?php echo $total_lecturers; ?></h4>
+                                <p class="mb-0">Total Lecturers</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Departments Grid -->
+                <?php if (empty($departments)): ?>
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Departments Found</h5>
+                            <p class="text-muted">Get started by adding your first department.</p>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
+                                <i class="fas fa-plus me-2"></i>Add First Department
+                            </button>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="row">
+                        <?php foreach ($departments as $department): 
+                            // Get counts for each department
+                            $deptId = $department['department_id'];
+                            $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = $deptId AND status_of_student = 'active'");
+                            $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
+                            
+                            $courseCountQuery = $conn->query("SELECT COUNT(*) as count FROM course WHERE department_id = $deptId AND is_active = TRUE");
+                            $courseCount = $courseCountQuery ? $courseCountQuery->fetch_assoc()['count'] : 0;
+                            
+                            $lecturerCountQuery = $conn->query("SELECT COUNT(*) as count FROM lecturers WHERE department_id = $deptId AND is_active = TRUE");
+                            $lecturerCount = $lecturerCountQuery ? $lecturerCountQuery->fetch_assoc()['count'] : 0;
+                        ?>
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card department-card h-100">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="card-title mb-1"><?php echo htmlspecialchars($department['department_name']); ?></h5>
+                                    <small class="opacity-75"><?php echo htmlspecialchars($department['department_code']); ?></small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-user-tie me-2 text-muted"></i>Head of Department:</strong>
+                                        <p class="mb-1"><?php echo htmlspecialchars($department['head_of_department']); ?></p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong><i class="fas fa-calendar me-2 text-muted"></i>Established:</strong>
+                                        <p class="mb-1"><?php echo date('F Y', strtotime($department['established_date'])); ?></p>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <strong><i class="fas fa-user-graduate me-2 text-muted"></i>Students:</strong>
+                                            <p class="mb-1"><?php echo $studentCount; ?></p>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong><i class="fas fa-book me-2 text-muted"></i>Courses:</strong>
+                                            <p class="mb-1"><?php echo $courseCount; ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <strong><i class="fas fa-chalkboard-teacher me-2 text-muted"></i>Lecturers:</strong>
+                                            <p class="mb-1"><?php echo $lecturerCount; ?></p>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong><i class="fas fa-chart-line me-2 text-muted"></i>Capacity:</strong>
+                                            <p class="mb-1"><?php echo min($studentCount, 100); ?>%</p>
+                                        </div>
+                                    </div>
+                                    <?php if ($department['description']): ?>
+                                        <div class="mb-3">
+                                            <strong><i class="fas fa-info-circle me-2 text-muted"></i>Description:</strong>
+                                            <p class="mb-0 text-muted small"><?php echo htmlspecialchars($department['description']); ?></p>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group w-100">
+                                        <a href="edit_department.php?id=<?php echo $department['department_id']; ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit me-1"></i>Edit
+                                        </a>
+                                        <a href="manage_departments.php?delete_id=<?php echo $department['department_id']; ?>" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Are you sure you want to delete this department?')">
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </a>
+                                        <a href="department_courses.php?id=<?php echo $department['department_id']; ?>" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-book me-1"></i>Courses
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
-      </div>
     </div>
-  </main>
+    
+    <!-- Add Department Modal -->
+    <div class="modal fade" id="addDepartmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus-circle me-2"></i>Add New Department
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="add_department" value="1">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="department_name" class="form-label">Department Name *</label>
+                                <input type="text" class="form-control" id="department_name" name="department_name" required 
+                                       placeholder="e.g., Computer Science">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="department_code" class="form-label">Department Code *</label>
+                                <input type="text" class="form-control" id="department_code" name="department_code" required 
+                                       placeholder="e.g., CS" maxlength="10">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="head_of_department" class="form-label">Head of Department *</label>
+                                <input type="text" class="form-control" id="head_of_department" name="head_of_department" required 
+                                       placeholder="e.g., Dr. John Smith">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="established_date" class="form-label">Established Date *</label>
+                                <input type="date" class="form-control" id="established_date" name="established_date" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" 
+                                      placeholder="Brief description of the department..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Add Department
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Set established date to today by default
+        document.addEventListener('DOMContentLoaded', function() {
+            const establishedDate = document.getElementById('established_date');
+            if (establishedDate && !establishedDate.value) {
+                const today = new Date().toISOString().split('T')[0];
+                establishedDate.value = today;
+            }
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Simple search functionality
-      const searchInput = document.querySelector('input[type="text"]');
-      const departmentCards = document.querySelectorAll('.department-card');
-      
-      searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        
-        departmentCards.forEach(card => {
-          const deptName = card.querySelector('h3').textContent.toLowerCase();
-          const deptDescription = card.querySelector('p').textContent.toLowerCase();
-          const deptCode = card.querySelector('.text-sm.font-medium.text-gray-800:last-child').textContent.toLowerCase();
-          
-          if (deptName.includes(searchTerm) || deptDescription.includes(searchTerm) || deptCode.includes(searchTerm)) {
-            card.style.display = 'block';
-          } else {
-            card.style.display = 'none';
-          }
+            // Form validation
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const deptCode = document.getElementById('department_code').value;
+                if (!/^[A-Z0-9-]+$/.test(deptCode)) {
+                    e.preventDefault();
+                    alert('Department code should contain only uppercase letters, numbers, and hyphens.');
+                    return false;
+                }
+            });
         });
-      });
-
-      // Button handlers for department actions
-      document.querySelectorAll('.view-details-btn').forEach(button => {
-        button.addEventListener('click', function() {
-          const deptName = this.getAttribute('data-dept-name');
-          const deptId = this.getAttribute('data-dept-id');
-          alert('Viewing details for ' + deptName + ' department (ID: ' + deptId + ')');
-          // You can redirect to a detailed department page here
-          // window.location.href = 'department_details.php?id=' + deptId;
-        });
-      });
-
-      document.querySelectorAll('.view-courses-btn').forEach(button => {
-        button.addEventListener('click', function() {
-          const deptName = this.getAttribute('data-dept-name');
-          const deptId = this.getAttribute('data-dept-id');
-          alert('Viewing courses offered by ' + deptName + ' department');
-          // Redirect to courses page filtered by department
-          // window.location.href = 'courses.php?department=' + deptId;
-        });
-      });
-
-      document.querySelectorAll('.view-lecturers-btn').forEach(button => {
-        button.addEventListener('click', function() {
-          const deptName = this.getAttribute('data-dept-name');
-          const deptId = this.getAttribute('data-dept-id');
-          alert('Viewing lecturers in ' + deptName + ' department');
-          // Redirect to lecturers page filtered by department
-          // window.location.href = 'lecturers.php?department=' + deptId;
-        });
-      });
-    });
-  </script>
+    </script>
 </body>
 </html>
