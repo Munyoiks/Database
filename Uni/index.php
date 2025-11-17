@@ -1,6 +1,6 @@
 <?php 
 session_start();
-require_once 'connection/db_connect.php';
+require_once '../connection/db_connect.php';
 
 // Check if student is logged in
 if (!isset($_SESSION['student_id'])) {

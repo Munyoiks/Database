@@ -211,19 +211,24 @@ $count = $r->fetch_assoc()['total'];
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <?php
-         $availableCourses = $conn->query("
+       $availableCourses = $conn->query("
     SELECT 
         c.*, 
-        l.full_name AS lecturer_name, 
-        d.department_name AS department_name
+        d.department_name AS department_name,
+        l.full_name AS lecturer_name
     FROM course c
-    LEFT JOIN lecturers l ON c.lecturer_id = l.lecturer_id
-    LEFT JOIN department d ON c.department_id = d.department_id
+    LEFT JOIN department d 
+        ON c.department_id = d.department_id
+    LEFT JOIN course_lecturers cl
+        ON c.course_id = cl.course_id
+    LEFT JOIN lecturers l
+        ON cl.lecturer_id = l.lecturer_id
     WHERE c.course_id NOT IN (
         SELECT course_id FROM student_course WHERE student_id = 1
     )
     LIMIT 6
 ");
+
 
 
           if ($availableCourses && $availableCourses->num_rows > 0) {
