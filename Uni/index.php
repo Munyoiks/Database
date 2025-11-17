@@ -19,19 +19,57 @@
     .active {
       background-color: rgba(255, 255, 255, 0.15);
     }
+    /* Custom scrollbar for sidebar */
+    .sidebar-scroll {
+      height: calc(100vh - 8rem);
+      overflow-y: auto;
+    }
+    .sidebar-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-scroll::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+    .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+    /* Custom scrollbar for main content */
+    .main-scroll {
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+    .main-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+    .main-scroll::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .main-scroll::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    .main-scroll::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
   </style>
 </head>
-<body class="bg-gray-50 flex">
+<body class="bg-gray-50 flex overflow-hidden">
 
   <!-- Sidebar -->
-  <aside class="w-64 bg-blue-900 text-white min-h-screen p-5 shadow-lg">
+  <aside class="w-64 bg-blue-900 text-white min-h-screen p-5 shadow-lg flex flex-col">
     <div class="flex items-center mb-8">
       <div class="bg-blue-700 p-2 rounded-lg mr-3">
         <i class="fas fa-graduation-cap text-xl"></i>
       </div>
       <h2 class="text-2xl font-bold">Student Dashboard</h2>
     </div>
-    <nav>
+    <nav class="sidebar-scroll flex-1">
       <ul>
         <li class="mb-2">
           <a href="index.php" class="flex items-center p-3 rounded-lg sidebar-link active">
@@ -40,15 +78,27 @@
           </a>
         </li>
         <li class="mb-2">
+          <a href="admission.php" class="flex items-center p-3 rounded-lg sidebar-link">
+            <i class="fas fa-file-alt mr-3"></i>
+            <span>Admission</span>
+          </a>
+        </li>
+        <li class="mb-2">
           <a href="students.php" class="flex items-center p-3 rounded-lg sidebar-link">
             <i class="fas fa-user-graduate mr-3"></i>
-            <span>Students</span>
+            <span>My Information</span>
           </a>
         </li>
         <li class="mb-2">
           <a href="courses.php" class="flex items-center p-3 rounded-lg sidebar-link">
             <i class="fas fa-book mr-3"></i>
-            <span>Courses</span>
+            <span>My Courses</span>
+          </a>
+        </li>
+        <li class="mb-2">
+          <a href="attendance.php" class="flex items-center p-3 rounded-lg sidebar-link">
+            <i class="fas fa-calendar-check mr-3"></i>
+            <span>Attendance</span>
           </a>
         </li>
         <li class="mb-2">
@@ -71,10 +121,16 @@
         </li>
       </ul>
     </nav>
+    <div class="pt-4 border-t border-blue-700 mt-4">
+      <div class="flex items-center text-sm text-blue-200">
+        <i class="fas fa-user-circle mr-2"></i>
+        <span>Student Portal v1.0</span>
+      </div>
+    </div>
   </aside>
 
   <!-- Main Content -->
-  <main class="flex-1 p-8">
+  <main class="flex-1 p-8 main-scroll">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-3xl font-bold text-gray-800">Student Dashboard</h1>
       <div class="flex items-center space-x-4">
@@ -82,82 +138,78 @@
           <input type="text" placeholder="Search..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
           <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
         </div>
-        <div class="flex items-center">
-          <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">AD</div>
+        <div class="flex items-center space-x-3">
+          <div class="text-right">
+            <p class="text-sm font-medium text-gray-800">John Doe</p>
+            <p class="text-xs text-gray-500">Computer Science</p>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">JD</div>
         </div>
       </div>
     </div>
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <!-- Total Students -->
+      <!-- My Courses -->
       <div class="bg-white p-6 rounded-xl shadow-md dashboard-card border-l-4 border-blue-500">
         <div class="flex justify-between items-start">
           <div>
-            <h3 class="text-gray-500 text-sm font-medium">Total Students</h3>
+            <h3 class="text-gray-500 text-sm font-medium">My Courses</h3>
             <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM students");
-              $count = $r->fetch_assoc()['total'];
+              $r = $conn->query("SELECT COUNT(*) AS total FROM students WHERE student_id = 1");
+              $count = $r->fetch_assoc()['total'] ?: 4;
             ?>
             <p class="text-3xl font-bold text-gray-800 mt-2"><?= $count ?></p>
           </div>
           <div class="bg-blue-100 p-3 rounded-lg">
-            <i class="fas fa-user-graduate text-blue-600 text-xl"></i>
+            <i class="fas fa-book text-blue-600 text-xl"></i>
           </div>
         </div>
         <div class="mt-4 text-sm text-gray-500">
-          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 5.2%</span> from last month
+          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 2 new</span> this semester
         </div>
       </div>
 
-      <!-- Courses -->
+      <!-- Attendance -->
       <div class="bg-white p-6 rounded-xl shadow-md dashboard-card border-l-4 border-green-500">
         <div class="flex justify-between items-start">
           <div>
-            <h3 class="text-gray-500 text-sm font-medium">Courses</h3>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM course");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-3xl font-bold text-gray-800 mt-2"><?= $count ?></p>
+            <h3 class="text-gray-500 text-sm font-medium">Attendance</h3>
+            <p class="text-3xl font-bold text-gray-800 mt-2">87%</p>
           </div>
           <div class="bg-green-100 p-3 rounded-lg">
-            <i class="fas fa-book text-green-600 text-xl"></i>
+            <i class="fas fa-calendar-check text-green-600 text-xl"></i>
           </div>
         </div>
         <div class="mt-4 text-sm text-gray-500">
-          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 2.1%</span> from last month
+          <span class="text-green-500"><i class="fas fa-check-circle"></i> Good</span> standing
         </div>
       </div>
 
-      <!-- Lecturers -->
+      <!-- GPA -->
       <div class="bg-white p-6 rounded-xl shadow-md dashboard-card border-l-4 border-purple-500">
         <div class="flex justify-between items-start">
           <div>
-            <h3 class="text-gray-500 text-sm font-medium">Lecturers</h3>
-            <?php 
-              $r = $conn->query("SELECT COUNT(*) AS total FROM lecturers");
-              $count = $r->fetch_assoc()['total'];
-            ?>
-            <p class="text-3xl font-bold text-gray-800 mt-2"><?= $count ?></p>
+            <h3 class="text-gray-500 text-sm font-medium">Current GPA</h3>
+            <p class="text-3xl font-bold text-gray-800 mt-2">3.75</p>
           </div>
           <div class="bg-purple-100 p-3 rounded-lg">
-            <i class="fas fa-chalkboard-teacher text-purple-600 text-xl"></i>
+            <i class="fas fa-chart-line text-purple-600 text-xl"></i>
           </div>
         </div>
         <div class="mt-4 text-sm text-gray-500">
-          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 3.7%</span> from last month
+          <span class="text-green-500"><i class="fas fa-arrow-up"></i> 0.15</span> from last term
         </div>
       </div>
 
-      <!-- Pending Payments -->
+      <!-- Pending Fees -->
       <div class="bg-white p-6 rounded-xl shadow-md dashboard-card border-l-4 border-red-500">
         <div class="flex justify-between items-start">
           <div>
-            <h3 class="text-gray-500 text-sm font-medium">Pending Payments</h3>
+            <h3 class="text-gray-500 text-sm font-medium">Pending Fees</h3>
             <?php 
-              $r = $conn->query("SELECT SUM(balance) AS pending FROM finance");
-              $pending = $r->fetch_assoc()['pending'] ?? 0;
+              $r = $conn->query("SELECT SUM(balance) AS pending FROM finance WHERE student_id = 1");
+              $pending = $r->fetch_assoc()['pending'] ?? 15000;
             ?>
             <p class="text-3xl font-bold text-gray-800 mt-2">KSh <?= number_format($pending) ?></p>
           </div>
@@ -166,77 +218,123 @@
           </div>
         </div>
         <div class="mt-4 text-sm text-gray-500">
-          <span class="text-red-500"><i class="fas fa-arrow-up"></i> 8.3%</span> from last month
+          <span class="text-red-500">Due in 15 days</span>
         </div>
       </div>
     </div>
 
-    <!-- Recent Activity and Charts Section -->
+    <!-- Recent Activity and Upcoming Events -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Recent Students -->
+      <!-- Upcoming Assignments -->
       <div class="bg-white p-6 rounded-xl shadow-md">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-gray-800">Recent Students</h2>
-          <a href="students.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All</a>
+          <h2 class="text-xl font-bold text-gray-800">Upcoming Assignments</h2>
+          <a href="courses.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All</a>
         </div>
         <div class="space-y-4">
-          <?php
-          $result = $conn->query("SELECT * FROM students ORDER BY id DESC LIMIT 5");
-          if ($result && $result->num_rows > 0) {
-            while($row = $result->fetch_assoc()) {
-              echo '
-              <div class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    '.substr($row['name'], 0, 1).'
-                  </div>
-                  <div class="ml-4">
-                    <h4 class="font-medium text-gray-800">'.$row['name'].'</h4>
-                    <p class="text-sm text-gray-500">Student ID: '.$row['id'].'</p>
-                  </div>
-                </div>
-                <span class="text-sm px-2 py-1 bg-green-100 text-green-800 rounded-full">Active</span>
+          <div class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div class="flex items-center">
+              <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <i class="fas fa-file-alt"></i>
               </div>
-              ';
-            }
-          } else {
-            echo '<p class="text-gray-500">No students found.</p>';
-          }
-          ?>
+              <div class="ml-4">
+                <h4 class="font-medium text-gray-800">Programming Project</h4>
+                <p class="text-sm text-gray-500">CS101 - Due Mar 25</p>
+              </div>
+            </div>
+            <span class="text-sm px-2 py-1 bg-red-100 text-red-800 rounded-full">Urgent</span>
+          </div>
+          <div class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div class="flex items-center">
+              <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+                <i class="fas fa-book"></i>
+              </div>
+              <div class="ml-4">
+                <h4 class="font-medium text-gray-800">Calculus Homework</h4>
+                <p class="text-sm text-gray-500">MATH201 - Due Mar 28</p>
+              </div>
+            </div>
+            <span class="text-sm px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full">Pending</span>
+          </div>
+          <div class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div class="flex items-center">
+              <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <i class="fas fa-flask"></i>
+              </div>
+              <div class="ml-4">
+                <h4 class="font-medium text-gray-800">Physics Lab Report</h4>
+                <p class="text-sm text-gray-500">PHY101 - Due Apr 2</p>
+              </div>
+            </div>
+            <span class="text-sm px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Upcoming</span>
+          </div>
         </div>
       </div>
 
-      <!-- Department Overview -->
+      <!-- Recent Grades -->
       <div class="bg-white p-6 rounded-xl shadow-md">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-xl font-bold text-gray-800">Department Overview</h2>
-          <a href="departments.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All</a>
+          <h2 class="text-xl font-bold text-gray-800">Recent Grades</h2>
+          <a href="courses.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All</a>
         </div>
         <div class="space-y-4">
-          <?php
-          $result = $conn->query("SELECT * FROM departments LIMIT 4");
-          if ($result && $result->num_rows > 0) {
-            while($row = $result->fetch_assoc()) {
-              // Get student count for this department
-              $studentCountQuery = $conn->query("SELECT COUNT(*) as count FROM students WHERE department_id = " . $row['id']);
-              $studentCount = $studentCountQuery ? $studentCountQuery->fetch_assoc()['count'] : 0;
-              
-              echo '
-              <div class="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
-                <div>
-                  <h4 class="font-medium text-gray-800">'.$row['name'].'</h4>
-                  <p class="text-sm text-gray-500">'.$studentCount.' students</p>
-                </div>
-                <div class="w-16 bg-gray-200 rounded-full h-2.5">
-                  <div class="bg-blue-600 h-2.5 rounded-full" style="width: '.min($studentCount*5, 100).'%"></div>
-                </div>
-              </div>
-              ';
-            }
-          } else {
-            echo '<p class="text-gray-500">No departments found.</p>';
-          }
-          ?>
+          <div class="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div>
+              <h4 class="font-medium text-gray-800">CS101 - Midterm Exam</h4>
+              <p class="text-sm text-gray-500">Programming Fundamentals</p>
+            </div>
+            <div class="text-right">
+              <span class="text-lg font-bold text-green-600">85%</span>
+              <p class="text-sm text-gray-500">A-</p>
+            </div>
+          </div>
+          <div class="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div>
+              <h4 class="font-medium text-gray-800">MATH201 - Quiz 2</h4>
+              <p class="text-sm text-gray-500">Integration Techniques</p>
+            </div>
+            <div class="text-right">
+              <span class="text-lg font-bold text-blue-600">78%</span>
+              <p class="text-sm text-gray-500">B+</p>
+            </div>
+          </div>
+          <div class="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+            <div>
+              <h4 class="font-medium text-gray-800">ENG101 - Essay</h4>
+              <p class="text-sm text-gray-500">Academic Writing</p>
+            </div>
+            <div class="text-right">
+              <span class="text-lg font-bold text-purple-600">92%</span>
+              <p class="text-sm text-gray-500">A</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-8 bg-white rounded-xl shadow-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h2 class="text-xl font-semibold text-gray-800">Quick Actions</h2>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <a href="courses.php" class="bg-blue-50 hover:bg-blue-100 p-4 rounded-lg text-center transition-colors duration-200">
+            <i class="fas fa-book text-blue-600 text-2xl mb-2"></i>
+            <p class="text-sm font-medium text-gray-800">Course Materials</p>
+          </a>
+          <a href="attendance.php" class="bg-green-50 hover:bg-green-100 p-4 rounded-lg text-center transition-colors duration-200">
+            <i class="fas fa-calendar-check text-green-600 text-2xl mb-2"></i>
+            <p class="text-sm font-medium text-gray-800">View Attendance</p>
+          </a>
+          <a href="finance.php" class="bg-purple-50 hover:bg-purple-100 p-4 rounded-lg text-center transition-colors duration-200">
+            <i class="fas fa-credit-card text-purple-600 text-2xl mb-2"></i>
+            <p class="text-sm font-medium text-gray-800">Pay Fees</p>
+          </a>
+          <a href="admission.php" class="bg-orange-50 hover:bg-orange-100 p-4 rounded-lg text-center transition-colors duration-200">
+            <i class="fas fa-file-alt text-orange-600 text-2xl mb-2"></i>
+            <p class="text-sm font-medium text-gray-800">Admission Status</p>
+          </a>
         </div>
       </div>
     </div>

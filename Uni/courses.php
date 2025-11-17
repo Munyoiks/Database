@@ -98,12 +98,12 @@ $count = $r->fetch_assoc()['total'];
           <?php
           // Get current semester courses for the student
           $currentCourses = $conn->query("
-            SELECT c.*, sc.enrollment_date, l.name as lecturer_name 
-            FROM course c 
-            JOIN student_courses sc ON c.id = sc.course_id 
-            LEFT JOIN lecturers l ON c.lecturer_id = l.id 
-            WHERE sc.student_id = 1 AND sc.semester = 'Spring 2024'
-          "); // Replace 1 with actual student ID
+    SELECT c.course_name, c.duration_years, sc.enrollment_date
+    FROM course c
+    JOIN student_course sc ON c.course_id = sc.course_id
+    WHERE sc.student_id = 1
+");
+
 
           if ($currentCourses && $currentCourses->num_rows > 0) {
             while($row = $currentCourses->fetch_assoc()) {
@@ -211,14 +211,20 @@ $count = $r->fetch_assoc()['total'];
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <?php
-          $availableCourses = $conn->query("
-            SELECT c.*, l.name as lecturer_name, d.name as department_name 
-            FROM course c 
-            LEFT JOIN lecturers l ON c.lecturer_id = l.id 
-            LEFT JOIN department d ON c.department_id = d.id 
-            WHERE c.id NOT IN (SELECT course_id FROM student_courses WHERE student_id = 1)
-            LIMIT 6
-          "); // Replace 1 with actual student ID
+         $availableCourses = $conn->query("
+    SELECT 
+        c.*, 
+        l.full_name AS lecturer_name, 
+        d.department_name AS department_name
+    FROM course c
+    LEFT JOIN lecturers l ON c.lecturer_id = l.lecturer_id
+    LEFT JOIN department d ON c.department_id = d.department_id
+    WHERE c.course_id NOT IN (
+        SELECT course_id FROM student_course WHERE student_id = 1
+    )
+    LIMIT 6
+");
+
 
           if ($availableCourses && $availableCourses->num_rows > 0) {
             while($row = $availableCourses->fetch_assoc()) {
